@@ -1,39 +1,55 @@
 package me.nozrul.dragonspear.listener;
 
 import org.bukkit.event.*;
-import org.bukkit.event.player.*;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.entity.Player;
-import me.nozrul.dragonspear.manager.PlayerDataManager;
-import me.nozrul.dragonspear.util.SpearUtil;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import me.nozrul.dragonspear.gui.UpgradeGUI;
+import me.nozrul.dragonspear.manager.PlayerDataManager;
+import me.nozrul.dragonspear.manager.TaskManager;
+import me.nozrul.dragonspear.manager.UpgradeEffect;
+import me.nozrul.dragonspear.util.SpearUtil;
 
-public class KeyListener implements Listener {
+public class UpgradeListener implements Listener {
 
     @EventHandler
-    public void onSwap(PlayerSwapHandItemsEvent e) {
+    public void onClick(InventoryClickEvent e) {
 
-        Player p = e.getPlayer();
+        if (!(e.getWhoClicked() instanceof Player)) return;
+        Player p = (Player) e.getWhoClicked();
 
-        if (!SpearUtil.isSpear(
-                p.getInventory().getItemInMainHand()))
-            return;
+        if (!e.getView().getTitle().equals("§cDragon Spear Menu")) return;
 
         e.setCancelled(true);
 
-        p.sendMessage("§6Level: §e" +
-                PlayerDataManager.getLevel(p));
-    }
+        if (e.getCurrentItem() == null || e.getCurrentItem().getType().isAir()) return;
 
-    @EventHandler
-    public void onDrop(PlayerDropItemEvent e) {
+        ItemStack clicked = e.getCurrentItem();
+        ItemMeta meta = clicked.getItemMeta();
+        if (meta == null) return;
 
-        Player p = e.getPlayer();
+        String spearType = SpearUtil.getType(clicked);
 
-        if (!SpearUtil.isSpear(
-                p.getInventory().getItemInMainHand()))
+        int level = PlayerDataManager.getLevel(p);
+
+        // Task Check
+        if (!TaskManager.isTaskComplete(p, spearType, level)) {
+            p.sendMessage("§cTask not complete! Current Task: §f" +
+                    TaskManager.getTaskText(spearType, level));
             return;
+        }
 
-        e.setCancelled(true);
+        // Upgrade Player Spear
+        level++;
+        PlayerDataManager.save(p, level, 0);
+
+        // Play Upgrade Effect
+        UpgradeEffect.play(p);
+
+        // Update GUI
         UpgradeGUI.open(p);
+
+        p.sendMessage("§aYour " + spearType + " upgraded to Level " + level + "!");
     }
-}
+            }
